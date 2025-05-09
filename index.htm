@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golden Slumbers - Dashboard Telemetria</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header con logo e controlli principali -->
+        <header class="dashboard-header">
+            <div class="logo">Golden Slumbers</div>
+            <div class="main-controls">
+                <select id="dataSource">
+                    <option value="realtime">Modalità Real-time</option>
+                    <option value="file">Modalità File</option>
+                </select>
+                <button id="connectBtn" class="btn primary">Connetti</button>
+                <button id="recordBtn" class="btn">Registra</button>
+            </div>
+        </header>
+
+        <!-- Contenuto principale della dashboard -->
+        <main class="dashboard-content">
+            <!-- Pannello sinistro con le visualizzazioni 3D -->
+            <section class="visualization-panel">
+                <div class="panel-header">
+                    <h2>Orientamento & Forze</h2>
+                </div>
+                <div class="panel-content">
+                    <!-- Canvas Three.js per la visualizzazione del razzo -->
+                    <div id="rocket-view" class="view-container">
+                        <div class="loading-indicator">Caricamento...</div>
+                    </div>
+                    <!-- Canvas per la visualizzazione dei vettori di forza -->
+                    <div id="force-view" class="view-container">
+                        <div class="loading-indicator">Caricamento...</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Pannello centrale con i grafici -->
+            <section class="charts-panel">
+                <div class="panel-header">
+                    <h2>Telemetria</h2>
+                    <div class="chart-controls">
+                        <button id="accelBtn" class="tab-btn active">Accelerometro</button>
+                        <button id="gyroBtn" class="tab-btn">Giroscopio</button>
+                        <button id="orientBtn" class="tab-btn">Orientamento</button>
+                        <button id="altBtn" class="tab-btn">Altitudine</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="accel-chart" class="chart-container active"></div>
+                    <div id="gyro-chart" class="chart-container"></div>
+                    <div id="orient-chart" class="chart-container"></div>
+                    <div id="alt-chart" class="chart-container"></div>
+                </div>
+            </section>
+            
+            <!-- Pannello destro con i gauge e i controlli specifici -->
+            <section class="controls-panel">
+                <div class="panel-header">
+                    <h2>Stato & Controlli</h2>
+                </div>
+                <div class="panel-content">
+                    <!-- Gauge per i vari parametri -->
+                    <div class="gauges-container">
+                        <div class="gauge" id="altitude-gauge">
+                            <div class="gauge-label">Altitudine</div>
+                            <canvas></canvas>
+                            <div class="gauge-value">0 m</div>
+                        </div>
+                        <div class="gauge" id="velocity-gauge">
+                            <div class="gauge-label">Velocità</div>
+                            <canvas></canvas>
+                            <div class="gauge-value">0 m/s</div>
+                        </div>
+                        <div class="gauge" id="battery-gauge">
+                            <div class="gauge-label">Batteria</div>
+                            <canvas></canvas>
+                            <div class="gauge-value">0 V</div>
+                        </div>
+                        <div class="gauge" id="temperature-gauge">
+                            <div class="gauge-label">Temperatura</div>
+                            <canvas></canvas>
+                            <div class="gauge-value">0 °C</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Controlli per il razzo -->
+                    <div class="rocket-controls">
+                        <h3>Controlli Razzo</h3>
+                        <div class="controls-grid">
+                            <button id="parachuteReleaseBtn" class="control-btn">Sgancio Paracadute</button>
+                            <button id="parachuteLockBtn" class="control-btn">Blocco Paracadute</button>
+                            <button id="startLogBtn" class="control-btn">Avvia Log</button>
+                            <button id="stopLogBtn" class="control-btn">Ferma Log</button>
+                            <button id="calibrateBtn" class="control-btn">Calibra</button>
+                            <button id="goBtn" class="control-btn">GO</button>
+                            <button id="rebootBtn" class="control-btn">Riavvia</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Controlli dei sensori -->
+                    <div class="sensor-controls">
+                        <h3>Impostazioni Sensori</h3>
+                        <div class="control-group">
+                            <label for="gyroRange">Range Giroscopio:</label>
+                            <select id="gyroRange">
+                                <option value="250">250 dps</option>
+                                <option value="500">500 dps</option>
+                                <option value="1000">1000 dps</option>
+                                <option value="2000">2000 dps</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="accelRange">Range Accelerometro:</label>
+                            <select id="accelRange">
+                                <option value="2">2g</option>
+                                <option value="4">4g</option>
+                                <option value="8">8g</option>
+                                <option value="16">16g</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="orientationSource">Fonte Orientamento:</label>
+                            <select id="orientationSource">
+                                <option value="software">Calcolo Software</option>
+                                <option value="quaternion">Quaternioni Razzo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Footer con informazioni addizionali e timeline -->
+        <footer class="dashboard-footer">
+            <div class="timeline-container">
+                <input type="range" id="timeSlider" min="0" max="100" value="0" class="timeline-slider">
+                <div class="timeline-controls">
+                    <button id="playBtn" class="btn small"><span class="icon">▶</span></button>
+                    <span id="timeDisplay">00:00:00</span>
+                </div>
+            </div>
+            <div class="file-controls">
+                <input type="file" id="fileInput" accept=".csv,.txt">
+                <button id="loadFileBtn" class="btn small">Carica File</button>
+            </div>
+            <div class="status-info">
+                <span id="connectionStatus" class="status-indicator">Disconnesso</span>
+                <span id="dataRate">0 B/s</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Log Panel (collassabile) -->
+    <div class="log-panel" id="logPanel">
+        <div class="log-header">
+            <h3>Log</h3>
+            <button id="toggleLogBtn" class="btn small">Nascondi</button>
+            <button id="clearLogBtn" class="btn small">Pulisci</button>
+        </div>
+        <div id="logContent" class="log-content"></div>
+    </div>
+
+
+    <!-- Caricamento Script -->
+    <script src="lib/three.min.js"></script>
+    <script src="lib/OrbitControls.js"></script>
+    <script src="lib/chart.min.js"></script>
+    <script src="lib/math.min.js"></script>
+    <script src="lib/papaparse.min.js"></script>
+    
+    <!-- Script Applicazione -->
+    <script src="js/main.js"></script>
+    <script src="js/dataReader.js"></script>
+    <script src="js/dataProcessor.js"></script>
+    <script src="js/rocketRenderer.js"></script>
+    <script src="js/forceRenderer.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/gauges.js"></script>
+</body>
+</html>

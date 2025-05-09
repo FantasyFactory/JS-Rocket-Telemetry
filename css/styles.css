@@ -1,0 +1,384 @@
+/* Reset e stili di base */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Layout principale */
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 30px);
+    width: 100%;
+    overflow: hidden;
+    padding-bottom: 30px;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: #2c3e50;
+    color: white;
+    height: 60px;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.dashboard-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.dashboard-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: #ecf0f1;
+    height: 50px;
+    border-top: 1px solid #ddd;
+}
+
+/* Pannelli */
+.visualization-panel, .charts-panel, .controls-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid #ddd;
+}
+
+.visualization-panel {
+    width: 35%;
+}
+
+.charts-panel {
+    width: 40%;
+}
+
+.controls-panel {
+    width: 25%;
+    border-right: none;
+}
+
+.panel-header {
+    padding: 0.5rem 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.panel-header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.panel-content {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+}
+
+/* Visualizzazione del razzo e forze */
+.view-container {
+    position: relative;
+    height: 50%;
+    width: 100%;
+    background-color: #000;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.loading-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+}
+
+/* Grafici */
+.chart-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.tab-btn.active {
+    background-color: #3498db;
+    color: white;
+}
+
+.chart-container {
+    display: none;
+    height: 100%;
+    width: 100%;
+}
+
+.chart-container.active {
+    display: block;
+}
+
+/* Gauge */
+.gauges-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.gauge {
+    position: relative;
+    text-align: center;
+}
+
+.gauge-label {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.gauge-value {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-top: 0.25rem;
+}
+
+/* Controlli razzo e sensori */
+.rocket-controls, .sensor-controls {
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.control-group {
+    margin-bottom: 0.75rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+}
+
+select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+}
+
+/* Bottoni */
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #e0e0e0;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: #d0d0d0;
+}
+
+.btn.primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn.primary:hover {
+    background-color: #2980b9;
+}
+
+.btn.small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+}
+
+.control-btn {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.control-btn:hover {
+    background-color: #e9ecef;
+}
+
+/* Timeline */
+.timeline-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 60%;
+}
+
+.timeline-slider {
+    flex: 1;
+    height: 8px;
+}
+
+.timeline-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Log Panel */
+.log-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background-color: white;
+    border-top: 2px solid #3498db;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    transform: translateY(170px);
+    transition: transform 0.3s;
+}
+
+.log-panel.expanded {
+    transform: translateY(0);
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+}
+
+.log-content {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+/* Status Indicators */
+.status-indicator {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background-color: #e74c3c;
+    color: white;
+}
+
+.status-indicator.connected {
+    background-color: #2ecc71;
+}
+
+/* Responsive Layout */
+@media (max-width: 1200px) {
+    .dashboard-content {
+        flex-direction: column;
+    }
+    
+    .visualization-panel, .charts-panel, .controls-panel {
+        width: 100%;
+        height: auto;
+    }
+
+    .visualization-panel {
+        height: 40vh;
+    }
+    
+    .charts-panel {
+        height: 30vh;
+    }
+    
+    .controls-panel {
+        height: 30vh;
+    }
+    
+    .view-container {
+        height: calc(50% - 0.5rem);
+    }
+    
+    .gauges-container {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .controls-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .gauges-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .controls-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .timeline-container {
+        width: 100%;
+    }
+    
+    .file-controls, .status-info {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .gauges-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .controls-grid {
+        grid-template-columns: 1fr;
+    }
+}
