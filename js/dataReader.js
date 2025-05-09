@@ -113,11 +113,11 @@ const DataReader = (function() {
                 wsConnection = null;
                 
                 // Riconnetti automaticamente dopo 3 secondi se siamo ancora in modalità realtime
-                if (dataSource === 'realtime') {
-                    setTimeout(() => {
-                        connectWebSocket();
-                    }, 3000);
-                }
+                // if (dataSource === 'realtime') {
+                //     setTimeout(() => {
+                //         connectWebSocket();
+                //     }, 3000);
+                // }
             };
             
             wsConnection.onerror = function(error) {

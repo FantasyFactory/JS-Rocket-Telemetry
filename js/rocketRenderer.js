@@ -167,8 +167,8 @@ const RocketRenderer = (function() {
             // Centra il testo
             textGeometry.computeBoundingBox();
             const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
-            
-            textMesh.position.set(-textWidth/2, 0, config.rocketRadius + 0.05);
+            const textHeight = textGeometry.boundingBox.max.y - textGeometry.boundingBox.min.y;
+            textMesh.position.set(textHeight/2, -textWidth/2, config.rocketRadius - 0.05);
             textMesh.rotation.z = Math.PI / 2;
             rocketModel.add(textMesh);
         });
