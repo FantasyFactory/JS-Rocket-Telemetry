@@ -473,7 +473,8 @@ const DataProcessor = (function() {
             orientation,
             acceleration: accel,
             gyro,
-            timestamp
+            timestamp,
+            sensors: data.sensors
         };
         
         // Se stiamo usando il filtro di Madgwick, aggiungi i quaternioni calcolati

@@ -222,10 +222,17 @@ const TelemetryCharts = (function() {
         
         return true;
     }
-    
+
     // Aggiorna i grafici con nuovi dati
     function update(data, baseTimestamp) {
         if (!data) return;
+        
+        // Debug: mostra i dati altitudine
+        if (data.sensors && data.sensors.altitude !== undefined) {
+            console.log("Dati altitudine ricevuti:", data.sensors.altitude);
+        } else {
+            console.log("Nessun dato altitudine disponibile nei dati ricevuti:", data);
+        }
         
         // Se baseTimestamp è fornito, lo usimao per calcolare l'offset temporale
         const timeOffset = baseTimestamp ? (data.timestamp - baseTimestamp) / 1000 : 0;
@@ -258,7 +265,7 @@ const TelemetryCharts = (function() {
         }
         
         // Aggiornamento grafico altitudine
-        if (charts.altitude && data.sensors && data.sensors.altitude !== undefined) {
+        if (charts.altitude && data.sensors && typeof data.sensors.altitude === 'number') {
             updateDatasets(charts.altitude, [data.sensors.altitude], timeOffset);
         }
     }
