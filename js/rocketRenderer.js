@@ -217,7 +217,7 @@ const RocketRenderer = (function() {
             const arcGeometry = new THREE.BufferGeometry().setFromPoints(points);
             const arcMaterial = new THREE.LineBasicMaterial({ 
                 color: arcColors[i], 
-                linewidth: 3
+                linewidth: 10
             });
             
             const arc = new THREE.Line(arcGeometry, arcMaterial);
@@ -228,8 +228,8 @@ const RocketRenderer = (function() {
         
         // Orienta gli archi per i tre assi
         gyroArcs[0].rotation.y = Math.PI / 2; // Arco X
-        gyroArcs[1].rotation.x = Math.PI / 2; // Arco Y
-        // Arco Z è già nell'orientamento corretto
+        // Arco Y è già nell'orientamento corretto
+        gyroArcs[2].rotation.x = Math.PI / 2; // Arco Z
     }
     
     // Aggiunge luci alla scena

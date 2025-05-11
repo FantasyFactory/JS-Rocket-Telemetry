@@ -38,6 +38,9 @@ const Dashboard = (function() {
         // Aggiungi gestione eventi generali
         initGeneralEventHandlers();
         
+        // Inizializza i tooltip per gli algoritmi
+        setupAlgorithmTooltips();
+        
         // Aggiorna lo stato iniziale dell'interfaccia
         updateUIState();
         
@@ -205,6 +208,7 @@ const Dashboard = (function() {
         const gyroRange = document.getElementById('gyroRange');
         const accelRange = document.getElementById('accelRange');
         const orientationSource = document.getElementById('orientationSource');
+        const orientationAlgorithm = document.getElementById('orientationAlgorithm');
         
         if (gyroRange) {
             gyroRange.addEventListener('change', () => {
@@ -239,6 +243,25 @@ const Dashboard = (function() {
                 
                 const sourceText = useQuaternion ? 'quaternioni del razzo' : 'calcolo software';
                 logMessage(`Fonte orientamento impostata a: ${sourceText}`);
+                updateOrientationControlsState();
+            });
+            updateOrientationControlsState();
+        }
+
+        if (orientationAlgorithm) {
+            // Imposta il valore iniziale in base all'algoritmo attualmente utilizzato
+            orientationAlgorithm.value = DataProcessor.filterType;
+            
+            orientationAlgorithm.addEventListener('change', () => {
+                const algorithmType = orientationAlgorithm.value;
+                
+                // Imposta il nuovo tipo di filtro nel DataProcessor
+                DataProcessor.setFilterType(algorithmType);
+                
+                logMessage(`Algoritmo di orientamento impostato a: ${algorithmType}`);
+                
+                // Disabilita il controllo se viene selezionata la fonte "quaternion"
+                updateOrientationControlsState();
             });
         }
     }
@@ -503,6 +526,26 @@ const Dashboard = (function() {
             playBtn.disabled = !isPlayback || DataReader.totalPoints === 0;
         }
     }
+
+    // Aggiorna lo stato dei controlli dell'orientamento
+    function updateOrientationControlsState() {
+        const orientationSource = document.getElementById('orientationSource');
+        const orientationAlgorithm = document.getElementById('orientationAlgorithm');
+        
+        if (!orientationSource || !orientationAlgorithm) return;
+        
+        const useQuaternion = orientationSource.value === 'quaternion';
+        
+        // Disabilita la selezione dell'algoritmo se vengono usati i quaternioni dal razzo
+        orientationAlgorithm.disabled = useQuaternion;
+        
+        // Aggiorna visualmente lo stato (opzionale)
+        if (useQuaternion) {
+            orientationAlgorithm.classList.add('disabled');
+        } else {
+            orientationAlgorithm.classList.remove('disabled');
+        }
+    }
     
     // Imposta la sorgente dati
     function setDataSource(source) {
@@ -571,3 +614,32 @@ const Dashboard = (function() {
         stopDataAcquisition
     };
 })();
+
+
+// Funzione per aggiungere tooltip dinamici che mostrano info specifiche
+function setupAlgorithmTooltips() {
+    const algorithmSelect = document.getElementById('orientationAlgorithm');
+    const tooltips = {
+        'complementary': 'Algoritmo semplice che combina accelerometro e giroscopio con un filtro passa-basso. Leggero ma meno preciso con movimenti rapidi.',
+        'kalman': 'Filtro statistico che stima lo stato del sistema in base a misurazioni rumorose. Offre un buon compromesso tra velocità e precisione.',
+        'madgwick': 'Algoritmo avanzato che usa quaternioni. Offre la migliore precisione, specialmente durante movimenti rapidi, ed è identico a quello usato nel razzo.'
+    };
+    
+    if (algorithmSelect) {
+        const tooltip = document.querySelector('label[for="orientationAlgorithm"] .tooltiptext');
+        if (tooltip) {
+            algorithmSelect.addEventListener('change', () => {
+                const algorithm = algorithmSelect.value;
+                if (tooltips[algorithm]) {
+                    tooltip.textContent = tooltips[algorithm];
+                }
+            });
+            
+            // Imposta il tooltip iniziale
+            const initialAlgorithm = algorithmSelect.value;
+            if (tooltips[initialAlgorithm]) {
+                tooltip.textContent = tooltips[initialAlgorithm];
+            }
+        }
+    }
+}

@@ -131,6 +131,25 @@
                                 <option value="quaternion">Quaternioni Razzo</option>
                             </select>
                         </div>
+                        <div class="control-group">
+                            <label for="orientationAlgorithm">
+                                Algoritmo Orientamento:
+                                <span class="tooltip">
+                                    <span class="algorithm-info">?</span>
+                                    <span class="tooltiptext">
+                                        Complementare: Semplice e leggero. Buono per movimenti lenti.
+                                        Kalman: Precisione media, buon filtraggio rumore.
+                                        Madgwick: Alta precisione, gestisce bene movimenti rapidi.
+                                    </span>
+                                </span>
+                            </label>
+                            <select id="orientationAlgorithm">
+                                <option value="complementary">Complementare</option>
+                                <option value="kalman">Kalman</option>
+                                <option value="madgwick">Simple Madgwick</option>
+                                <option value="fullmadgwick">Full Madgwick</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </section>
