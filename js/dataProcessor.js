@@ -425,8 +425,13 @@ const DataProcessor = (function() {
         }
         lastTimestamp = timestamp;
         
+        // Debug: verifica la presenza dei quaternioni
+        if (data.quaternion) {
+            console.log("Quaternioni disponibili:", data.quaternion);
+        }
+        
         // Se sono disponibili i quaternioni e l'opzione è abilitata, usali direttamente
-        if (useQuaternion && data.quaternion) {
+        if (useQuaternion && data.quaternion && data.quaternion.qW !== undefined) {
             // Converti quaternioni in angoli di Eulero (roll, pitch, yaw)
             const angles = quaternionToEuler(data.quaternion);
             orientation.x = angles.roll;
@@ -463,18 +468,20 @@ const DataProcessor = (function() {
         orientation.y = normalizeAngle(orientation.y);
         orientation.z = normalizeAngle(orientation.z);
         
-        // Se stiamo usando il filtro di Madgwick, aggiungi i quaternioni calcolati
-        if (filterType === 'fullmadgwick' && !useQuaternion) {
-            result.quaternion = getCalculatedQuaternion();
-        }
-
-        // Restituisci i dati elaborati
-        return {
+        // Crea l'oggetto risultato
+        const result = {
             orientation,
             acceleration: accel,
             gyro,
             timestamp
         };
+        
+        // Se stiamo usando il filtro di Madgwick, aggiungi i quaternioni calcolati
+        if (filterType === 'fullmadgwick' && !useQuaternion) {
+            result.quaternion = getCalculatedQuaternion();
+        }
+
+        return result;
     }
     
     // Applica il filtro complementare

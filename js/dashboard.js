@@ -37,7 +37,7 @@ const Dashboard = (function() {
         
         // Aggiungi gestione eventi generali
         initGeneralEventHandlers();
-        
+
         // Inizializza i tooltip per gli algoritmi
         setupAlgorithmTooltips();
         
@@ -125,24 +125,29 @@ const Dashboard = (function() {
     
     // Gestisce l'upload del file
     function handleFileUpload(file) {
-        logMessage(`Caricamento del file: ${file.name}`);
+        logMessage(`Caricamento del file: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
         
         // Utilizza DataReader per caricare il file
         DataReader.loadFromFile(file)
             .then(data => {
-                logMessage(`File caricato con successo. ${data.length} record trovati.`);
-                DataReader.setDataSource('file');
-                
-                // Aggiorna l'interfaccia
-                updateUIState();
-                
-                // Mostra il primo punto dati
-                if (data.length > 0) {
-                    DataReader.seek(0);
+                if (data && data.length > 0) {
+                    logMessage(`File caricato con successo. ${data.length} record trovati.`);
+                    DataReader.setDataSource('file');
+                    
+                    // Aggiorna l'interfaccia
+                    updateUIState();
+                    
+                    // Mostra il primo punto dati
+                    if (data.length > 0) {
+                        DataReader.seek(0);
+                    }
+                } else {
+                    logMessage(`File caricato ma non contiene dati validi.`, 'error');
                 }
             })
             .catch(error => {
                 logMessage(`Errore nel caricamento del file: ${error.message}`, 'error');
+                console.error("Dettaglio errore:", error);
             });
     }
     
@@ -237,6 +242,9 @@ const Dashboard = (function() {
         }
         
         if (orientationSource) {
+            // All'inizializzazione, imposta useQuaternion a false per default
+            DataProcessor.setUseQuaternion(false);
+            
             orientationSource.addEventListener('change', () => {
                 const useQuaternion = orientationSource.value === 'quaternion';
                 DataProcessor.setUseQuaternion(useQuaternion);
@@ -245,6 +253,9 @@ const Dashboard = (function() {
                 logMessage(`Fonte orientamento impostata a: ${sourceText}`);
                 updateOrientationControlsState();
             });
+            
+            // Imposta il valore iniziale in base all'impostazione in DataProcessor
+            orientationSource.value = DataProcessor.useQuaternion ? 'quaternion' : 'software';
             updateOrientationControlsState();
         }
 
@@ -494,38 +505,49 @@ const Dashboard = (function() {
         isConnected = connected;
     }
     
-    // Aggiorna lo stato dell'interfaccia utente
-    function updateUIState() {
-        const dataSource = DataReader.dataSource;
-        const isPlayback = dataSource === 'file';
-        
-        // Attiva/disattiva controlli basati sulla sorgente dati
-        document.querySelectorAll('.rocket-controls button').forEach(btn => {
-            btn.disabled = isPlayback;
-        });
-        
-        document.querySelectorAll('.sensor-controls select').forEach(select => {
+// Aggiorna lo stato dell'interfaccia utente
+function updateUIState() {
+    const dataSource = DataReader.dataSource;
+    const isPlayback = dataSource === 'file';
+    
+    // Attiva/disattiva controlli basati sulla sorgente dati
+    document.querySelectorAll('.rocket-controls button').forEach(btn => {
+        btn.disabled = isPlayback;
+    });
+    
+    // Mantieni attivi alcuni controlli selezionati anche in modalità file
+    document.querySelectorAll('.sensor-controls select').forEach(select => {
+        // Se è il selettore per l'algoritmo di orientamento o fonte di orientamento, non disabilitarlo
+        if (select.id === 'orientationAlgorithm' || select.id === 'orientationSource') {
+            // Non disabilitare questi controlli
+            select.disabled = false;
+        } else {
+            // Disabilita gli altri controlli dei sensori
             select.disabled = isPlayback;
-        });
-        
-        // Aggiorna il selettore della sorgente dati
-        const dataSourceSelect = document.getElementById('dataSource');
-        if (dataSourceSelect) {
-            dataSourceSelect.value = dataSource;
         }
-        
-        // Aggiorna controlli timeline
-        const timeSlider = document.getElementById('timeSlider');
-        const playBtn = document.getElementById('playBtn');
-        
-        if (timeSlider) {
-            timeSlider.disabled = !isPlayback || DataReader.totalPoints === 0;
-        }
-        
-        if (playBtn) {
-            playBtn.disabled = !isPlayback || DataReader.totalPoints === 0;
-        }
+    });
+    
+    // Aggiorna il selettore della sorgente dati
+    const dataSourceSelect = document.getElementById('dataSource');
+    if (dataSourceSelect) {
+        dataSourceSelect.value = dataSource;
     }
+    
+    // Aggiorna controlli timeline
+    const timeSlider = document.getElementById('timeSlider');
+    const playBtn = document.getElementById('playBtn');
+    
+    if (timeSlider) {
+        timeSlider.disabled = !isPlayback || DataReader.totalPoints === 0;
+    }
+    
+    if (playBtn) {
+        playBtn.disabled = !isPlayback || DataReader.totalPoints === 0;
+    }
+    
+    // Aggiorna lo stato dei controlli dell'orientamento
+    updateOrientationControlsState();
+}
 
     // Aggiorna lo stato dei controlli dell'orientamento
     function updateOrientationControlsState() {
@@ -552,11 +574,34 @@ const Dashboard = (function() {
         // Ferma prima l'acquisizione corrente
         stopDataAcquisition();
         
+        // Salva le impostazioni correnti di orientamento per ripristinarle dopo
+        const currentUseQuaternion = DataProcessor.useQuaternion;
+        const currentFilterType = DataProcessor.filterType;
+        
         // Imposta la nuova sorgente
         DataReader.setDataSource(source);
         
+        // Resetta il DataProcessor ma mantieni le impostazioni precedenti
+        DataProcessor.reset()
+                    .setUseQuaternion(currentUseQuaternion)
+                    .setFilterType(currentFilterType);
+        
         // Aggiorna l'interfaccia
         updateUIState();
+        
+        // Aggiorna anche i controlli di orientamento
+        const orientationSource = document.getElementById('orientationSource');
+        const orientationAlgorithm = document.getElementById('orientationAlgorithm');
+        
+        if (orientationSource) {
+            orientationSource.value = currentUseQuaternion ? 'quaternion' : 'software';
+        }
+        
+        if (orientationAlgorithm) {
+            orientationAlgorithm.value = currentFilterType;
+        }
+        
+        updateOrientationControlsState();
         
         logMessage(`Modalità cambiata a: ${source}`);
     }
