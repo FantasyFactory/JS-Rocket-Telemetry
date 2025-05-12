@@ -18,6 +18,8 @@
                 </select>
                 <button id="connectBtn" class="btn primary">Connetti</button>
                 <button id="recordBtn" class="btn">Registra</button>
+                <button id="resetDataBtn" class="btn">Reset Dataset</button>
+                <button id="saveDataBtn" class="btn">Salva Dataset</button>
             </div>
         </header>
 
@@ -150,6 +152,13 @@
                                 <option value="fullmadgwick">Full Madgwick</option>
                             </select>
                         </div>
+                        <div class="control-group">
+                            <label for="quaternionViewMode">Visualizzazione Quaternioni:</label>
+                            <select id="quaternionViewMode">
+                                <option value="calculated">Calcolati</option>
+                                <option value="received">Ricevuti</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -163,6 +172,10 @@
                     <button id="playBtn" class="btn small"><span class="icon">▶</span></button>
                     <span id="timeDisplay">00:00:00</span>
                 </div>
+            </div>
+            <div class="dataset-info">
+                <span id="datasetSize">0 punti</span>
+                <span id="samplingRate">Campionamento: -- ms</span>
             </div>
             <div class="file-controls">
                 <input type="file" id="fileInput" accept=".csv,.txt">
@@ -195,6 +208,7 @@
     
     <!-- Script Applicazione -->
     <script src="js/main.js"></script>
+    <script src="js/TelemetryDataset.js"></script>
     <script src="js/dataReader.js"></script>
     <script src="js/dataProcessor.js"></script>
     <script src="js/rocketRenderer.js"></script>

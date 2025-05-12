@@ -193,6 +193,43 @@ const Dashboard = (function() {
                 }
             });
         }
+
+        // Listener per il pulsante di reset del dataset
+        const resetDataBtn = document.getElementById('resetDataBtn');
+        if (resetDataBtn) {
+            resetDataBtn.addEventListener('click', () => {
+                if (confirm('Sei sicuro di voler resettare il dataset? Tutti i dati non salvati verranno persi.')) {
+                    DataReader.resetDataset();
+                    logMessage('Dataset resettato');
+                }
+            });
+        }
+        
+        // Listener per il pulsante di salvataggio del dataset
+        const saveDataBtn = document.getElementById('saveDataBtn');
+        if (saveDataBtn) {
+            saveDataBtn.addEventListener('click', () => {
+                const result = DataReader.saveCurrentDataset();
+                if (result) {
+                    logMessage('Dataset salvato su file');
+                } else {
+                    logMessage('Nessun dato da salvare', 'error');
+                }
+            });
+        }
+        
+        // Listener per il cambio modalità quaternioni
+        const quaternionViewMode = document.getElementById('quaternionViewMode');
+        if (quaternionViewMode) {
+            quaternionViewMode.addEventListener('change', () => {
+                const useReceivedQuaternions = quaternionViewMode.value === 'received';
+                DataProcessor.setUseQuaternion(useReceivedQuaternions);
+                logMessage(`Modalità quaternioni impostata a: ${useReceivedQuaternions ? 'Ricevuti' : 'Calcolati'}`);
+            });
+            
+            // Imposta il valore iniziale in base all'impostazione in DataProcessor
+            quaternionViewMode.value = DataProcessor.useQuaternion ? 'received' : 'calculated';
+        }
     }
     
     // Invia un comando al razzo
@@ -305,17 +342,21 @@ const Dashboard = (function() {
     }
     
     // Aggiorna il display del tempo
+    // Modificata per usare il timestamp effettivo
     function updateTimeDisplay(index) {
         const timeDisplay = document.getElementById('timeDisplay');
         if (!timeDisplay) return;
         
-        if (DataReader.totalPoints === 0) {
+        if (DataReader.telemetryDataset.data.length === 0) {
             timeDisplay.textContent = '00:00:00';
             return;
         }
         
-        // Assumiamo che ogni punto sia distanziato di 100ms (può essere regolato)
-        const totalMilliseconds = index * 100;
+        // Calcola il tempo reale basandosi sui timestamp
+        const startTime = DataReader.telemetryDataset.metadata.startTime;
+        const currentTime = DataReader.telemetryDataset.data[index].timestamp;
+        const totalMilliseconds = currentTime - startTime;
+        
         const seconds = Math.floor(totalMilliseconds / 1000) % 60;
         const minutes = Math.floor(totalMilliseconds / (1000 * 60)) % 60;
         const hours = Math.floor(totalMilliseconds / (1000 * 60 * 60));
@@ -324,6 +365,12 @@ const Dashboard = (function() {
             `${hours.toString().padStart(2, '0')}:` +
             `${minutes.toString().padStart(2, '0')}:` +
             `${seconds.toString().padStart(2, '0')}`;
+        
+        // Evidenzia il punto corrispondente nei grafici
+        TelemetryCharts.highlightPoint('accel', index);
+        TelemetryCharts.highlightPoint('gyro', index);
+        TelemetryCharts.highlightPoint('orientation', index);
+        TelemetryCharts.highlightPoint('altitude', index);
     }
     
     // Inizializza i gestori di eventi generali
@@ -333,9 +380,43 @@ const Dashboard = (function() {
             TelemetryCharts.resize();
         });
         
-        // Ascolta gli eventi di telemetria
+        // Ascolta gli eventi di dataset
         window.addEventListener('telemetryEvent', (event) => {
             handleTelemetryEvent(event.detail);
+
+            const eventDetail = event.detail;
+            const { type, data } = eventDetail;
+            
+            switch (type) {
+                case 'datasetReset':
+                    TelemetryCharts.clear();
+                    updateDatasetInfo();
+                    break;
+                    
+                case 'fileLoaded':
+                    // Carica i dati dai grafici dal dataset completo
+                    TelemetryCharts.loadFromDataset(DataReader.telemetryDataset);
+                    updateDatasetInfo();
+                    break;
+                    
+                case 'stats':
+                    updateDatasetInfo();
+                    break;
+                    
+                case 'orientationRecalculated':
+                    // Ricarica i dati di orientamento nei grafici
+                    if (charts.orientation) {
+                        TelemetryCharts.setData('orientation', [
+                            DataReader.telemetryDataset.getDataSeries('orientation', 0),
+                            DataReader.telemetryDataset.getDataSeries('orientation', 1),
+                            DataReader.telemetryDataset.getDataSeries('orientation', 2)
+                        ]);
+                    }
+                    break;
+                default:
+                    // Non gestire altri eventi
+                    break;
+            }
         });
         
         // Aggiungi un listener di dati al DataReader
@@ -471,8 +552,30 @@ const Dashboard = (function() {
         
         // Aggiorna i gauge e altri indicatori
         updateGauges(data);
+
+        // Aggiorna le informazioni sul dataset
+        updateDatasetInfo();
     }
     
+    // Aggiorna le informazioni sul dataset
+    function updateDatasetInfo() {
+        const datasetSize = document.getElementById('datasetSize');
+        const samplingRate = document.getElementById('samplingRate');
+        
+        if (datasetSize && DataReader.telemetryDataset) {
+            datasetSize.textContent = `${DataReader.telemetryDataset.data.length} punti`;
+        }
+        
+        if (samplingRate && DataReader.telemetryDataset && DataReader.telemetryDataset.metadata) {
+            const rates = DataReader.telemetryDataset.metadata.samplingRates;
+            if (rates && rates.avg) {
+                samplingRate.textContent = `Campionamento: media ${(rates.avg * 1000).toFixed(1)} ms (min: ${(rates.min * 1000).toFixed(1)}, max: ${(rates.max * 1000).toFixed(1)})`;
+            } else {
+                samplingRate.textContent = 'Campionamento: -- ms';
+            }
+        }
+    }
+
     // Aggiorna i gauge con i dati
     function updateGauges(data) {
         // Debug: verifica i dati altitudine per i gauge

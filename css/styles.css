@@ -377,6 +377,25 @@ select.disabled, select:disabled {
     opacity: 1;
 }
 
+.dataset-info {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+#datasetSize, #samplingRate {
+    white-space: nowrap;
+}
+
+/* Stile per i punti evidenziati sui grafici */
+.highlighted-point {
+    r: 6;
+    fill: #ff0000;
+    stroke: #000000;
+    stroke-width: 2;
+}
+
 /* Responsive Layout */
 @media (max-width: 1200px) {
     .dashboard-content {

@@ -1,11 +1,13 @@
 /**
- * Implementazione completa del filtro Madgwick in JavaScript
+ * Versione migliorata del filtro Madgwick in JavaScript
  * Basato sull'algoritmo originale di Sebastian Madgwick
  * http://x-io.co.uk/open-source-imu-and-ahrs-algorithms/
+ * 
+ * Questa versione supporta direttamente deltaTime anziché calcolarlo da timestamp
  */
 class MadgwickAHRS {
     constructor(sampleFreq = 100, beta = 0.1) {
-        // Frequenza di campionamento in Hz
+        // Frequenza di campionamento in Hz (usata solo se non viene fornito deltaTime)
         this.sampleFreq = sampleFreq;
         
         // Parametro di guadagno dell'algoritmo (2 * errore proporzionale stimato)
@@ -16,9 +18,6 @@ class MadgwickAHRS {
         this.q1 = 0.0;
         this.q2 = 0.0;
         this.q3 = 0.0;
-        
-        // Ultimo timestamp per calcolare il delta
-        this.lastUpdate = Date.now();
     }
     
     /**
@@ -29,20 +28,18 @@ class MadgwickAHRS {
      * @param {number} ax - Accelerazione X (g)
      * @param {number} ay - Accelerazione Y (g)
      * @param {number} az - Accelerazione Z (g)
-     * @param {number} timestamp - Timestamp in millisecondi (opzionale)
+     * @param {number} deltaTime - Tempo trascorso in secondi (opzionale)
      */
-    updateIMU(gx, gy, gz, ax, ay, az, timestamp = Date.now()) {
+    updateIMU(gx, gy, gz, ax, ay, az, deltaTime = null) {
         let recipNorm;
         let s0, s1, s2, s3;
         let qDot1, qDot2, qDot3, qDot4;
         let _2q0, _2q1, _2q2, _2q3, _4q0, _4q1, _4q2, _8q1, _8q2, q0q0, q1q1, q2q2, q3q3;
         
-        // Calcola il deltaTime in secondi
-        const deltaTime = (timestamp - this.lastUpdate) / 1000; // s
-        this.lastUpdate = timestamp;
-        
-        // Previene divisione per zero
-        if (deltaTime === 0) return;
+        // Se deltaTime non viene fornito, utilizza 1/sampleFreq
+        if (deltaTime === null) {
+            deltaTime = 1.0 / this.sampleFreq;
+        }
         
         // Converti velocità angolare da gradi/sec a radianti/s
         gx *= 0.0174533; // Math.PI / 180
@@ -123,13 +120,18 @@ class MadgwickAHRS {
      * @param {number} mx - Campo magnetico X
      * @param {number} my - Campo magnetico Y
      * @param {number} mz - Campo magnetico Z
-     * @param {number} timestamp - Timestamp in millisecondi (opzionale)
+     * @param {number} deltaTime - Tempo trascorso in secondi (opzionale)
      */
-    update(gx, gy, gz, ax, ay, az, mx, my, mz, timestamp = Date.now()) {
+    update(gx, gy, gz, ax, ay, az, mx, my, mz, deltaTime = null) {
         // Se i dati del magnetometro non sono validi, utilizza la versione solo IMU
         if ((mx === 0.0) && (my === 0.0) && (mz === 0.0)) {
-            this.updateIMU(gx, gy, gz, ax, ay, az, timestamp);
+            this.updateIMU(gx, gy, gz, ax, ay, az, deltaTime);
             return;
+        }
+        
+        // Se deltaTime non viene fornito, utilizza 1/sampleFreq
+        if (deltaTime === null) {
+            deltaTime = 1.0 / this.sampleFreq;
         }
         
         let recipNorm;
@@ -138,13 +140,6 @@ class MadgwickAHRS {
         let hx, hy;
         let _2q0mx, _2q0my, _2q0mz, _2q1mx, _2bx, _2bz, _4bx, _4bz;
         let _2q0, _2q1, _2q2, _2q3, _2q0q2, _2q2q3, q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;
-        
-        // Calcola il deltaTime in secondi
-        const deltaTime = (timestamp - this.lastUpdate) / 1000; // s
-        this.lastUpdate = timestamp;
-        
-        // Previene divisione per zero
-        if (deltaTime === 0) return;
         
         // Converti velocità angolare da gradi/sec a radianti/s
         gx *= 0.0174533; // Math.PI / 180
@@ -242,7 +237,6 @@ class MadgwickAHRS {
      */
     invSqrt(x) {
         // Implementazione JS della funzione invSqrt
-        // Non è veloce come l'implementazione C originale (che usa bit hacking)
         return 1.0 / Math.sqrt(x);
     }
     
@@ -309,26 +303,43 @@ class MadgwickAHRS {
     setBeta(beta) {
         this.beta = beta;
     }
+    
+    /**
+     * Imposta direttamente i valori del quaternione
+     * @param {Object} quaternion - Quaternione {qW, qX, qY, qZ}
+     */
+    setQuaternion(quaternion) {
+        if (quaternion && typeof quaternion === 'object') {
+            this.q0 = quaternion.qW !== undefined ? quaternion.qW : 1.0;
+            this.q1 = quaternion.qX !== undefined ? quaternion.qX : 0.0;
+            this.q2 = quaternion.qY !== undefined ? quaternion.qY : 0.0;
+            this.q3 = quaternion.qZ !== undefined ? quaternion.qZ : 0.0;
+            
+            // Normalizza il quaternione
+            const recipNorm = this.invSqrt(this.q0 * this.q0 + this.q1 * this.q1 + this.q2 * this.q2 + this.q3 * this.q3);
+            this.q0 *= recipNorm;
+            this.q1 *= recipNorm;
+            this.q2 *= recipNorm;
+            this.q3 *= recipNorm;
+        }
+    }
 }
 
 /**
- * dataProcessor.js
+ * dataProcessor.js (Modificato)
  * Elabora i dati telemetrici e implementa vari algoritmi di fusione dei sensori
+ * con supporto per timestamp variabili
  */
 
 const DataProcessor = (function() {
     // Variabili private
-    let orientation = { x: 0, y: 0, z: 0 }; // roll, pitch, yaw in gradi
-    let velocity = { x: 0, y: 0, z: 0 };
-    let position = { x: 0, y: 0, z: 0 };
-    let lastTimestamp = 0;
     let filterType = 'complementary'; // 'complementary', 'kalman', 'madgwick', 'fullmadgwick'
     let filterEnabled = true;
     let useQuaternion = false; // Se true, usa i quaternioni dal razzo invece di calcolare l'orientamento
     
     // Istanza dell'algoritmo di Madgwick
     let madgwickFilter = new MadgwickAHRS(100, 0.1); // sampleFreq, beta
-
+    
     // Configurazione dei filtri
     const filterConfig = {
         complementary: {
@@ -348,21 +359,26 @@ const DataProcessor = (function() {
     function setFilterType(type) {
         if (['complementary', 'kalman', 'madgwick', 'fullmadgwick'].includes(type)) {
             filterType = type;
-            // Reset dell'orientamento quando si cambia algoritmo (opzionale)
-            // Rimuovi o commenta questa riga se vuoi mantenere l'orientamento attuale
-            orientation = { x: 0, y: 0, z: 0 };
             
             // Aggiorna i parametri specifici del filtro selezionato
-            if (type === 'fullmadgwick') {
+            if (type === 'madgwick' || type === 'fullmadgwick') {
                 // Assicura che madgwickFilter abbia beta configurato correttamente
                 madgwickFilter.setBeta(filterConfig.madgwick.beta);
             }
             
-            // Emetti un evento di cambio filtro (opzionale)
+            // Reset del filtro
+            madgwickFilter.reset();
+            
+            // Emetti un evento di cambio filtro
             const event = new CustomEvent('filterTypeChanged', {
                 detail: { type: filterType }
             });
             window.dispatchEvent(event);
+            
+            // Se abbiamo un dataset completo, ricalcola l'orientamento
+            if (DataReader && DataReader.telemetryDataset) {
+                DataReader.recalculateOrientation(filterType, useQuaternion);
+            }
         } else {
             console.error('Tipo di filtro non valido:', type);
         }
@@ -381,7 +397,7 @@ const DataProcessor = (function() {
             Object.assign(filterConfig[type], config);
 
             // Aggiorna il parametro beta del filtro Madgwick se necessario
-            if (type === 'fullmadgwick' && 'beta' in config) {
+            if ((type === 'madgwick' || type === 'fullmadgwick') && 'beta' in config) {
                 madgwickFilter.setBeta(config.beta);
             }
         }
@@ -390,17 +406,12 @@ const DataProcessor = (function() {
     
     // Resetta l'orientamento e altre variabili di stato
     function reset() {
-        orientation = { x: 0, y: 0, z: 0 };
-        velocity = { x: 0, y: 0, z: 0 };
-        position = { x: 0, y: 0, z: 0 };
-        lastTimestamp = 0;
-
         // Reset del filtro Madgwick
         madgwickFilter.reset();
-
+        
         return this;
     }
-
+    
     // Ottieni quaternioni calcolati dal filtro di Madgwick
     function getCalculatedQuaternion() {
         return madgwickFilter.getQuaternion();
@@ -409,177 +420,184 @@ const DataProcessor = (function() {
     // Imposta l'uso dei quaternioni
     function setUseQuaternion(enabled) {
         useQuaternion = enabled;
+        
+        // Se abbiamo un dataset completo, ricalcola l'orientamento
+        if (DataReader && DataReader.telemetryDataset) {
+            DataReader.recalculateOrientation(filterType, useQuaternion);
+        }
+        
         return this;
     }
     
-    // Processa i dati telemetrici
+    // Processa i dati telemetrici (nuova versione che utilizza deltaTime dal punto dati)
     function processData(data) {
-        const timestamp = data.system.millis;
+        // Usa direttamente i dati di orientamento ricalcolati se disponibili
+        if (data.orientation) {
+            return data;
+        }
+        
         const accel = data.sensors.accel;
         const gyro = data.sensors.gyro;
         
-        // Calcola il delta tempo in secondi
-        let deltaTime = 0;
-        if (lastTimestamp !== 0) {
-            deltaTime = (timestamp - lastTimestamp) / 1000; // In secondi
-        }
-        lastTimestamp = timestamp;
+        // Ottieni il deltaTime in secondi
+        const deltaTime = data.deltaTime || 0.01; // Default a 10ms se non disponibile
         
-        // Debug: verifica la presenza dei quaternioni
-        if (data.quaternion) {
-            console.log("Quaternioni disponibili:", data.quaternion);
-        }
+        // Crea l'oggetto risultato con una copia profonda dei dati originali
+        const result = {
+            ...data,
+            orientation: { x: 0, y: 0, z: 0 }
+        };
         
         // Se sono disponibili i quaternioni e l'opzione è abilitata, usali direttamente
         if (useQuaternion && data.quaternion && data.quaternion.qW !== undefined) {
             // Converti quaternioni in angoli di Eulero (roll, pitch, yaw)
             const angles = quaternionToEuler(data.quaternion);
-            orientation.x = angles.roll;
-            orientation.y = angles.pitch;
-            orientation.z = angles.yaw;
-        }
-        // Altrimenti, usa i filtri standard
+            result.orientation = {
+                x: angles.roll,
+                y: angles.pitch,
+                z: angles.yaw
+            };
+            
+            // Mantieni il quaternione originale
+            result.calculatedQuaternion = data.quaternion;
+        } 
+        // Altrimenti, se il filtro è disabilitato, esegui una stima semplice
         else if (!filterEnabled) {
-            // In questo caso, possiamo fare una stima grossolana dell'orientamento dall'accelerometro
-            orientation.x = Math.atan2(accel.y, accel.z) * (180 / Math.PI); // Roll
-            orientation.y = Math.atan2(-accel.x, Math.sqrt(accel.y * accel.y + accel.z * accel.z)) * (180 / Math.PI); // Pitch
-            // Yaw non può essere stimato solo dall'accelerometro
-            orientation.z += gyro.z * deltaTime; // Integriamo il giroscopio per lo yaw
-        } else {
-            // Altrimenti, applica il filtro selezionato
+            // Stima grossolana dell'orientamento dall'accelerometro
+            result.orientation = {
+                x: Math.atan2(accel.y, accel.z) * (180 / Math.PI), // Roll
+                y: Math.atan2(-accel.x, Math.sqrt(accel.y * accel.y + accel.z * accel.z)) * (180 / Math.PI), // Pitch
+                z: 0 // Yaw non può essere stimato solo dall'accelerometro
+            };
+        } 
+        // Altrimenti, applica il filtro selezionato
+        else {
             switch (filterType) {
                 case 'complementary':
-                    applyComplementaryFilter(accel, gyro, deltaTime);
+                    applyComplementaryFilter(result, deltaTime);
                     break;
                 case 'kalman':
-                    applyKalmanFilter(accel, gyro, deltaTime);
+                    applyKalmanFilter(result, deltaTime);
                     break;
                 case 'madgwick':
-                    applyMadgwickFilter(accel, gyro, deltaTime);
-                    break;
                 case 'fullmadgwick':
-                    applyFullMadgwickFilter(accel, gyro, deltaTime);
+                    // Resetta madgwick se è il primo punto
+                    if (data.firstPoint) {
+                        madgwickFilter.reset();
+                    }
+                    
+                    // Aggiorna il filtro Madgwick con i dati dell'IMU
+                    madgwickFilter.updateIMU(
+                        gyro.x, gyro.y, gyro.z,   // Velocità angolari in gradi/s
+                        accel.x, accel.y, accel.z, // Accelerazioni in g
+                        deltaTime                  // deltaTime in secondi
+                    );
+                    
+                    // Ottieni gli angoli di Eulero dal filtro
+                    const angles = madgwickFilter.getEulerAngles();
+                    
+                    // Aggiorna l'orientamento
+                    result.orientation = {
+                        x: angles.roll,   // Roll
+                        y: angles.pitch,  // Pitch
+                        z: angles.yaw     // Yaw
+                    };
+                    
+                    // Salva i quaternioni calcolati
+                    result.calculatedQuaternion = madgwickFilter.getQuaternion();
                     break;
             }
         }
         
         // Normalizza gli angoli
-        orientation.x = normalizeAngle(orientation.x);
-        orientation.y = normalizeAngle(orientation.y);
-        orientation.z = normalizeAngle(orientation.z);
+        result.orientation.x = normalizeAngle(result.orientation.x);
+        result.orientation.y = normalizeAngle(result.orientation.y);
+        result.orientation.z = normalizeAngle(result.orientation.z);
         
-        // Crea l'oggetto risultato
-        const result = {
-            orientation,
-            acceleration: accel,
-            gyro,
-            timestamp,
-            sensors: data.sensors
-        };
-        
-        // Se stiamo usando il filtro di Madgwick, aggiungi i quaternioni calcolati
-        if (filterType === 'fullmadgwick' && !useQuaternion) {
-            result.quaternion = getCalculatedQuaternion();
-        }
-
         return result;
     }
     
     // Applica il filtro complementare
-    function applyComplementaryFilter(accel, gyro, deltaTime) {
+    function applyComplementaryFilter(data, deltaTime) {
         if (deltaTime <= 0) return;
         
-        // Limita deltaTime per evitare salti enormi
-        const limitedDt = Math.min(deltaTime, 0.1);
+        const accel = data.sensors.accel;
+        const gyro = data.sensors.gyro;
         
         // Calcola angoli dall'accelerometro
         const accelRoll = Math.atan2(accel.y, accel.z) * (180 / Math.PI);
         const accelPitch = Math.atan2(-accel.x, Math.sqrt(accel.y * accel.y + accel.z * accel.z)) * (180 / Math.PI);
+        
+        // Se è il primo punto o non ci sono dati precedenti, inizializza con i valori dell'accelerometro
+        if (!data.previousOrientation) {
+            data.orientation = {
+                x: accelRoll,
+                y: accelPitch,
+                z: 0  // Yaw non può essere determinato solo dall'accelerometro
+            };
+            return;
+        }
+        
+        // Recupera l'orientamento precedente
+        const prevRoll = data.previousOrientation.x || 0;
+        const prevPitch = data.previousOrientation.y || 0;
+        const prevYaw = data.previousOrientation.z || 0;
         
         // Applica il filtro complementare
         const alpha = filterConfig.complementary.alpha;
-        orientation.x = alpha * (orientation.x + gyro.x * limitedDt) + (1 - alpha) * accelRoll;
-        orientation.y = alpha * (orientation.y + gyro.y * limitedDt) + (1 - alpha) * accelPitch;
-        orientation.z += gyro.z * limitedDt; // Integriamo solo il giroscopio per lo yaw
+        data.orientation = {
+            x: alpha * (prevRoll + gyro.x * deltaTime) + (1 - alpha) * accelRoll,
+            y: alpha * (prevPitch + gyro.y * deltaTime) + (1 - alpha) * accelPitch,
+            z: prevYaw + gyro.z * deltaTime  // Integriamo solo il giroscopio per lo yaw
+        };
     }
     
     // Implementazione semplificata del filtro di Kalman
-    function applyKalmanFilter(accel, gyro, deltaTime) {
+    function applyKalmanFilter(data, deltaTime) {
         if (deltaTime <= 0) return;
         
-        // Limita deltaTime per evitare salti enormi
-        const limitedDt = Math.min(deltaTime, 0.1);
-        
-        // Per semplicità, utilizziamo un'implementazione molto semplificata del filtro di Kalman
-        // In una implementazione reale, utilizzeremmo matrici e calcoli più complessi
+        const accel = data.sensors.accel;
+        const gyro = data.sensors.gyro;
         
         // Calcola angoli dall'accelerometro
         const accelRoll = Math.atan2(accel.y, accel.z) * (180 / Math.PI);
         const accelPitch = Math.atan2(-accel.x, Math.sqrt(accel.y * accel.y + accel.z * accel.z)) * (180 / Math.PI);
+        
+        // Se è il primo punto o non ci sono dati precedenti, inizializza con i valori dell'accelerometro
+        if (!data.previousOrientation) {
+            data.orientation = {
+                x: accelRoll,
+                y: accelPitch,
+                z: 0  // Yaw non può essere determinato solo dall'accelerometro
+            };
+            return;
+        }
+        
+        // Recupera l'orientamento precedente
+        const prevRoll = data.previousOrientation.x || 0;
+        const prevPitch = data.previousOrientation.y || 0;
+        const prevYaw = data.previousOrientation.z || 0;
         
         // Predizione: integrazione del giroscopio
-        const predictedRoll = orientation.x + gyro.x * limitedDt;
-        const predictedPitch = orientation.y + gyro.y * limitedDt;
-        const predictedYaw = orientation.z + gyro.z * limitedDt;
+        const predictedRoll = prevRoll + gyro.x * deltaTime;
+        const predictedPitch = prevPitch + gyro.y * deltaTime;
+        const predictedYaw = prevYaw + gyro.z * deltaTime;
+        
+        // Parametri del filtro di Kalman
+        const processNoise = filterConfig.kalman.processNoise;
+        const measurementNoise = filterConfig.kalman.measurementNoiseAccel;
         
         // Guadagno di Kalman (semplificato)
-        const K = filterConfig.kalman.processNoise / (filterConfig.kalman.processNoise + filterConfig.kalman.measurementNoiseAccel);
+        const K = processNoise / (processNoise + measurementNoise);
         
         // Correzione
-        orientation.x = predictedRoll + K * (accelRoll - predictedRoll);
-        orientation.y = predictedPitch + K * (accelPitch - predictedPitch);
-        orientation.z = predictedYaw; // Per yaw, utilizziamo solo la predizione
+        data.orientation = {
+            x: predictedRoll + K * (accelRoll - predictedRoll),
+            y: predictedPitch + K * (accelPitch - predictedPitch),
+            z: predictedYaw  // Per yaw, utilizziamo solo la predizione
+        };
     }
- 
-    // Implementazione semplificata del filtro di Madgwick
-    function applyMadgwickFilter(accel, gyro, deltaTime) {
-        if (deltaTime <= 0) return;
-        
-        // Limita deltaTime per evitare salti enormi
-        const limitedDt = Math.min(deltaTime, 0.1);
-        
-        // Per semplicità, qui implementiamo una versione molto semplificata del filtro di Madgwick
-        // In una implementazione reale, utilizzeremmo quaternioni e calcoli più complessi
-        
-        // Calcola angoli dall'accelerometro
-        const accelRoll = Math.atan2(accel.y, accel.z) * (180 / Math.PI);
-        const accelPitch = Math.atan2(-accel.x, Math.sqrt(accel.y * accel.y + accel.z * accel.z)) * (180 / Math.PI);
-        
-        // Integrazione del giroscopio
-        const gyroRoll = orientation.x + gyro.x * limitedDt;
-        const gyroPitch = orientation.y + gyro.y * limitedDt;
-        const gyroYaw = orientation.z + gyro.z * limitedDt;
-        
-        // Peso di fusione (più complesso nel vero filtro di Madgwick)
-        const beta = filterConfig.madgwick.beta;
-        
-        // Fusione delle stime
-        orientation.x = gyroRoll - beta * (gyroRoll - accelRoll);
-        orientation.y = gyroPitch - beta * (gyroPitch - accelPitch);
-        orientation.z = gyroYaw; // Per yaw, utilizziamo solo il giroscopio
-    }
-
-    // Aggiorna la funzione applyFullMadgwickFilter con l'implementazione corretta
-    function applyFullMadgwickFilter(accel, gyro, deltaTime) {
-        if (deltaTime <= 0) return;
-        
-        // Aggiorna il filtro di Madgwick con i dati dell'IMU
-        madgwickFilter.updateIMU(
-            gyro.x, gyro.y, gyro.z,   // Velocità angolari in gradi/s
-            accel.x, accel.y, accel.z, // Accelerazioni in g
-            Date.now()                // Timestamp attuale
-        );
-        
-        // Ottieni gli angoli di Eulero dal filtro
-        const angles = madgwickFilter.getEulerAngles();
-        
-        // Aggiorna l'orientamento
-        orientation.x = angles.roll;   // Roll
-        orientation.y = angles.pitch;  // Pitch
-        orientation.z = angles.yaw;    // Yaw
-    }
-
-
+    
     // Normalizza un angolo nell'intervallo [-180, 180]
     function normalizeAngle(angle) {
         while (angle > 180) angle -= 360;
@@ -629,6 +647,23 @@ const DataProcessor = (function() {
         return { roll, pitch, yaw };
     }
     
+    // Converte angoli di Eulero in quaternioni
+    function eulerToQuaternion(roll, pitch, yaw) {
+        const cr = Math.cos(roll * 0.5);
+        const sr = Math.sin(roll * 0.5);
+        const cp = Math.cos(pitch * 0.5);
+        const sp = Math.sin(pitch * 0.5);
+        const cy = Math.cos(yaw * 0.5);
+        const sy = Math.sin(yaw * 0.5);
+        
+        const qW = cr * cp * cy + sr * sp * sy;
+        const qX = sr * cp * cy - cr * sp * sy;
+        const qY = cr * sp * cy + sr * cp * sy;
+        const qZ = cr * cp * sy - sr * sp * cy;
+        
+        return { qW, qX, qY, qZ };
+    }
+    
     // Restituisci l'interfaccia pubblica
     return {
         setFilterType,
@@ -639,12 +674,8 @@ const DataProcessor = (function() {
         processData,
         
         // Getter di sola lettura
-        get orientation() { return { ...orientation }; },
-        get velocity() { return { ...velocity }; },
-        get position() { return { ...position }; },
         get filterType() { return filterType; },
         get filterEnabled() { return filterEnabled; },
         get useQuaternion() { return useQuaternion; }
     };
 })();
-
