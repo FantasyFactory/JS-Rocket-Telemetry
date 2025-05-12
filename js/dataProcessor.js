@@ -102,20 +102,55 @@ const DataProcessor = (function() {
         return this;
     }
     
-    // Processa i dati telemetrici (nuova versione che utilizza deltaTime dal punto dati)
+    /**
+     * Processa i dati telemetrici per calcolare l'orientamento
+     * @param {Object} data - Dati telemetrici in formato standard
+     * @returns {Object} - Dati con orientamento calcolato
+     */
     function processData(data) {
-        // Usa direttamente i dati di orientamento ricalcolati se disponibili
-        if (data.orientation) {
-            return data;
+        if (!data) {
+            console.error('processData: dati mancanti');
+            return { 
+                sensors: { accel: {x: 0, y: 0, z: 0}, gyro: {x: 0, y: 0, z: 0} },
+                orientation: { x: 0, y: 0, z: 0 } 
+            };
+        }
+        
+        console.log('DataProcessor.processData ricevuto:', JSON.stringify(data));
+        
+        // Verifica che i sensori siano presenti
+        if (!data.sensors) {
+            console.error('processData: dati sensori mancanti');
+            data.sensors = { accel: { x: 0, y: 0, z: 0 }, gyro: { x: 0, y: 0, z: 0 } };
+        }
+        
+        // Verifica che accel e gyro siano presenti
+        if (!data.sensors.accel) {
+            console.error('processData: dati accelerometro mancanti');
+            data.sensors.accel = { x: 0, y: 0, z: 0 };
+        }
+        
+        if (!data.sensors.gyro) {
+            console.error('processData: dati giroscopio mancanti');
+            data.sensors.gyro = { x: 0, y: 0, z: 0 };
         }
         
         const accel = data.sensors.accel;
         const gyro = data.sensors.gyro;
         
+        // Verifica che i valori non siano tutti zero
+        if (accel.x === 0 && accel.y === 0 && accel.z === 0) {
+            console.warn('processData: tutti i valori accelerometro sono zero');
+        }
+        
+        if (gyro.x === 0 && gyro.y === 0 && gyro.z === 0) {
+            console.warn('processData: tutti i valori giroscopio sono zero');
+        }
+        
         // Ottieni il deltaTime in secondi
         const deltaTime = data.deltaTime || 0.01; // Default a 10ms se non disponibile
         
-        // Crea l'oggetto risultato con una copia profonda dei dati originali
+        // Crea l'oggetto risultato mantenendo i dati originali
         const result = {
             ...data,
             orientation: { x: 0, y: 0, z: 0 }
@@ -131,8 +166,7 @@ const DataProcessor = (function() {
                 z: angles.yaw
             };
             
-            // Mantieni il quaternione originale
-            result.calculatedQuaternion = data.quaternion;
+            console.log('Orientamento calcolato da quaternioni:', result.orientation);
         } 
         // Altrimenti, se il filtro è disabilitato, esegui una stima semplice
         else if (!filterEnabled) {
@@ -142,15 +176,19 @@ const DataProcessor = (function() {
                 y: Math.atan2(-accel.x, Math.sqrt(accel.y * accel.y + accel.z * accel.z)) * (180 / Math.PI), // Pitch
                 z: 0 // Yaw non può essere stimato solo dall'accelerometro
             };
+            
+            console.log('Orientamento calcolato con stima semplice:', result.orientation);
         } 
         // Altrimenti, applica il filtro selezionato
         else {
             switch (filterType) {
                 case 'complementary':
                     applyComplementaryFilter(result, deltaTime);
+                    console.log('Orientamento calcolato con filtro complementare:', result.orientation);
                     break;
                 case 'kalman':
                     applyKalmanFilter(result, deltaTime);
+                    console.log('Orientamento calcolato con filtro Kalman:', result.orientation);
                     break;
                 case 'madgwick':
                 case 'fullmadgwick':
@@ -178,7 +216,19 @@ const DataProcessor = (function() {
                     
                     // Salva i quaternioni calcolati
                     result.calculatedQuaternion = madgwickFilter.getQuaternion();
+                    
+                    console.log('Orientamento calcolato con filtro Madgwick:', result.orientation);
                     break;
+                default:
+                    console.warn('Tipo di filtro non supportato:', filterType);
+                    // Fallback su stima semplice
+                    result.orientation = {
+                        x: Math.atan2(accel.y, accel.z) * (180 / Math.PI),
+                        y: Math.atan2(-accel.x, Math.sqrt(accel.y * accel.y + accel.z * accel.z)) * (180 / Math.PI),
+                        z: 0
+                    };
+                    
+                    console.log('Orientamento calcolato con stima semplice (fallback):', result.orientation);
             }
         }
         

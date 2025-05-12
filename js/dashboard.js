@@ -515,46 +515,58 @@ const Dashboard = (function() {
         }
     }
     
-    // Gestisce gli aggiornamenti di dati
+    /**
+     * Gestisce gli aggiornamenti di dati
+     * @param {Object} data - Dati ricevuti
+     */
     function handleDataUpdate(data) {
-        // Debug: verifica la struttura dei dati ricevuti
-        console.log("Dati ricevuti:", 
-            data.sensors ? 
-            `Accelerazione: [${data.sensors.accel.x.toFixed(2)}, ${data.sensors.accel.y.toFixed(2)}, ${data.sensors.accel.z.toFixed(2)}], Altitudine: ${data.sensors.altitude}` :
-            "Dati sensori mancanti");
-        
-        // Processa i dati con DataProcessor
-        const processedData = DataProcessor.processData(data);
-        
-        // Assicuriamoci che processedData contenga anche i dati dei sensori
-        if (!processedData.sensors && data.sensors) {
-            processedData.sensors = data.sensors;
+        // Verifica che i dati siano validi
+        if (!data) {
+            console.error("handleDataUpdate: dati mancanti");
+            return;
         }
         
-        // Debug: verifica i dati processati
-        console.log("Dati processati:", 
-            processedData.sensors ? 
-            `Altitudine: ${processedData.sensors.altitude}` :
-            "Dati sensori mancanti nei dati processati");
+        // Debug: verifica la struttura dei dati ricevuti
+        console.log("Dati ricevuti in handleDataUpdate:", data);
         
-        // Aggiorna RocketRenderer
-        RocketRenderer.update(
-            processedData.orientation,
-            processedData.acceleration,
-            processedData.gyro
-        );
-        
-        // Aggiorna ForceRenderer
-        ForceRenderer.draw(processedData.acceleration);
-        
-        // Aggiorna i grafici - passa solo processedData che ora include sensors
-        TelemetryCharts.update(processedData);
-        
-        // Aggiorna i gauge e altri indicatori
-        updateGauges(data);
+        try {
+            // Processa i dati con DataProcessor
+            const processedData = DataProcessor.processData(data);
+            console.log("Dati processati:", processedData);
+            
+            // Assicuriamoci che processedData contenga anche i dati dei sensori originali
+            if (!processedData.sensors && data.sensors) {
+                console.log("Copio sensors dai dati originali ai dati processati");
+                processedData.sensors = data.sensors;
+            }
+            
+            // Verifica che l'orientamento sia stato calcolato correttamente
+            if (!processedData.orientation) {
+                console.error("Orientamento mancante nei dati processati");
+                processedData.orientation = { x: 0, y: 0, z: 0 };
+            }
+            
+            // Aggiorna RocketRenderer con l'orientamento e i dati dell'accelerometro e giroscopio
+            RocketRenderer.update(
+                processedData.orientation,
+                processedData.sensors.accel,
+                processedData.sensors.gyro
+            );
+            
+            // Aggiorna ForceRenderer con i dati dell'accelerometro
+            ForceRenderer.draw(processedData.sensors.accel);
+            
+            // Aggiorna i grafici
+            TelemetryCharts.update(processedData);
+            
+            // Aggiorna i gauge e altri indicatori
+            updateGauges(processedData);
 
-        // Aggiorna le informazioni sul dataset
-        updateDatasetInfo();
+            // Aggiorna le informazioni sul dataset
+            updateDatasetInfo();
+        } catch (error) {
+            console.error("Errore in handleDataUpdate:", error);
+        }
     }
     
     // Aggiorna le informazioni sul dataset
@@ -576,45 +588,78 @@ const Dashboard = (function() {
         }
     }
 
-    // Aggiorna i gauge con i dati
+    /**
+     * Aggiorna i gauge con i dati
+     * @param {Object} data - Dati da visualizzare
+     */
     function updateGauges(data) {
-        // Debug: verifica i dati altitudine per i gauge
-        if (data.sensors && typeof data.sensors.altitude === 'number') {
-            console.log("Aggiornamento gauge altitudine:", data.sensors.altitude);
-        } else {
-            console.log("Nessun dato altitudine valido per i gauge:", data);
+        if (!data) {
+            console.error("updateGauges: dati mancanti");
+            return;
         }
         
-        // Aggiorna il gauge dell'altitudine
-        const altitudeValue = document.querySelector('#altitude-gauge .gauge-value');
-        if (altitudeValue && data.sensors && typeof data.sensors.altitude === 'number') {
-            altitudeValue.textContent = `${data.sensors.altitude.toFixed(1)} m`;
-            // Aggiorna anche il valore del gauge usando l'API di Gauges
-            Gauges.setValue('altitude-gauge', data.sensors.altitude);
-        }
+        console.log("Aggiornamento gauge con dati:", data);
         
-        // Aggiorna la velocità
-        const velocityValue = document.querySelector('#velocity-gauge .gauge-value');
-        if (velocityValue && data.simulation && typeof data.simulation.velocity === 'number') {
-            velocityValue.textContent = `${data.simulation.velocity.toFixed(1)} m/s`;
-            // Aggiorna anche il valore del gauge
-            Gauges.setValue('velocity-gauge', data.simulation.velocity);
-        }
-        
-        // Aggiorna la batteria
-        const batteryValue = document.querySelector('#battery-gauge .gauge-value');
-        if (batteryValue && data.system && typeof data.system.battery_voltage === 'number') {
-            batteryValue.textContent = `${data.system.battery_voltage.toFixed(2)} V`;
-            // Aggiorna anche il valore del gauge
-            Gauges.setValue('battery-gauge', data.system.battery_voltage);
-        }
-        
-        // Aggiorna la temperatura
-        const temperatureValue = document.querySelector('#temperature-gauge .gauge-value');
-        if (temperatureValue && data.sensors && typeof data.sensors.temperature === 'number') {
-            temperatureValue.textContent = `${data.sensors.temperature.toFixed(1)} °C`;
-            // Aggiorna anche il valore del gauge
-            Gauges.setValue('temperature-gauge', data.sensors.temperature);
+        try {
+            // Verifica che i dati dei sensori siano presenti
+            if (!data.sensors) {
+                console.error("updateGauges: dati sensori mancanti");
+                return;
+            }
+            
+            // Aggiorna il gauge dell'altitudine
+            if (typeof data.sensors.altitude === 'number') {
+                const altitudeValue = document.querySelector('#altitude-gauge .gauge-value');
+                if (altitudeValue) {
+                    altitudeValue.textContent = `${data.sensors.altitude.toFixed(1)} m`;
+                }
+                
+                // Aggiorna anche il valore del gauge usando l'API di Gauges
+                if (typeof Gauges !== 'undefined' && typeof Gauges.setValue === 'function') {
+                    Gauges.setValue('altitude-gauge', data.sensors.altitude);
+                }
+            }
+            
+            // Aggiorna la velocità (se disponibile)
+            if (data.simulation && typeof data.simulation.velocity === 'number') {
+                const velocityValue = document.querySelector('#velocity-gauge .gauge-value');
+                if (velocityValue) {
+                    velocityValue.textContent = `${data.simulation.velocity.toFixed(1)} m/s`;
+                }
+                
+                // Aggiorna anche il valore del gauge
+                if (typeof Gauges !== 'undefined' && typeof Gauges.setValue === 'function') {
+                    Gauges.setValue('velocity-gauge', data.simulation.velocity);
+                }
+            }
+            
+            // Aggiorna la batteria
+            if (data.system && typeof data.system.battery_voltage === 'number') {
+                const batteryValue = document.querySelector('#battery-gauge .gauge-value');
+                if (batteryValue) {
+                    batteryValue.textContent = `${data.system.battery_voltage.toFixed(2)} V`;
+                }
+                
+                // Aggiorna anche il valore del gauge
+                if (typeof Gauges !== 'undefined' && typeof Gauges.setValue === 'function') {
+                    Gauges.setValue('battery-gauge', data.system.battery_voltage);
+                }
+            }
+            
+            // Aggiorna la temperatura
+            if (typeof data.sensors.temperature === 'number') {
+                const temperatureValue = document.querySelector('#temperature-gauge .gauge-value');
+                if (temperatureValue) {
+                    temperatureValue.textContent = `${data.sensors.temperature.toFixed(1)} °C`;
+                }
+                
+                // Aggiorna anche il valore del gauge
+                if (typeof Gauges !== 'undefined' && typeof Gauges.setValue === 'function') {
+                    Gauges.setValue('temperature-gauge', data.sensors.temperature);
+                }
+            }
+        } catch (error) {
+            console.error("Errore in updateGauges:", error);
         }
     }
     

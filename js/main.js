@@ -232,3 +232,56 @@ function applyTheme() {
 
 // Avvia l'applicazione quando il DOM è completamente caricato
 document.addEventListener('DOMContentLoaded', initApp);
+
+
+/**
+ * Funzione per testare la connessione WebSocket al razzo
+ */
+function testWebSocketConnection() {
+    console.log('Test connessione WebSocket al razzo...');
+    
+    // Determina l'URL del WebSocket
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const baseUrl = 'http://192.168.4.1';
+    const wsHost = new URL(baseUrl).hostname;
+    const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+    
+    console.log(`Tentativo di connessione a ${wsUrl}`);
+    
+    let testWs = new WebSocket(wsUrl);
+    
+    testWs.onopen = function() {
+        console.log('Connessione WebSocket di test stabilita!');
+    };
+    
+    testWs.onclose = function() {
+        console.log('Connessione WebSocket di test chiusa');
+    };
+    
+    testWs.onerror = function(error) {
+        console.error('Errore WebSocket di test:', error);
+    };
+    
+    testWs.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            console.log('Dati ricevuti dal test WebSocket:', data);
+        } catch (error) {
+            console.error('Errore parsing dati WebSocket di test:', error);
+            console.log('Dati grezzi ricevuti:', event.data);
+        }
+    };
+    
+    // Ritorna una funzione per chiudere la connessione
+    return {
+        close: function() {
+            if (testWs) {
+                testWs.close();
+                console.log('Connessione WebSocket di test chiusa manualmente');
+            }
+        }
+    };
+}
+
+// Esporta la funzione in window per uso dalla console
+window.testWebSocketConnection = testWebSocketConnection;

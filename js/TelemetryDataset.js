@@ -70,161 +70,135 @@ class TelemetryDataset {
                data.system;
     }
     
-    /**
-     * Converte dati in formato grezzo nel formato standard
-     * @private
-     * @param {Object} dataPoint - Dati da convertire
-     * @returns {Object} - Dati nel formato standard
-     */
-    _convertToStandardFormat(dataPoint) {
-        // Funzione helper per convertire valori in numeri in modo sicuro
-        function safeParseFloat(value, defaultValue = 0) {
-            if (value === undefined || value === null) return defaultValue;
-            if (typeof value === 'number') return value;
-            if (typeof value === 'string') {
-                // Se è una stringa, prova a convertirla in numero
-                // Sostituisci la virgola con il punto per gestire formati europei
-                const parsedValue = parseFloat(value.replace(',', '.'));
-                return isNaN(parsedValue) ? defaultValue : parsedValue;
-            }
-            return defaultValue;
+/**
+ * Converte dati in formato grezzo (razzo) nel formato standard interno
+ * @private
+ * @param {Object} dataPoint - Dati da convertire
+ * @returns {Object} - Dati nel formato standard
+ */
+_convertToStandardFormat(dataPoint) {
+    console.log('Conversione da formato grezzo a standard:', dataPoint);
+    
+    // Funzione helper per convertire valori in numeri in modo sicuro
+    function safeParseFloat(value, defaultValue = 0) {
+        if (value === undefined || value === null) return defaultValue;
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string') {
+            const parsedValue = parseFloat(value.replace(',', '.'));
+            return isNaN(parsedValue) ? defaultValue : parsedValue;
         }
-        
-        // Creazione dell'oggetto di ritorno con valori di default
-        const standardData = {
-            timestamp: Date.now(),
-            sensors: {
-                accel: { x: 0, y: 0, z: 0 },
-                gyro: { x: 0, y: 0, z: 0 },
-                altitude: 0,
-                temperature: 20
-            },
-            system: {
-                battery_voltage: 4.2,
-                free_heap: 0,
-                free_space: 0,
-                total_space: 1,
-                wifi_strength: 0,
-                millis: Date.now(),
-                rocketState: "Unknown"
-            },
-            simulation: {
-                altitude: 0,
-                velocity: 0
-            },
-            orientation: { x: 0, y: 0, z: 0 },
-            quaternion: null,
-            calculatedQuaternion: null
-        };
-
-        // Gestione timestamp/tempo
-        if ('timestamp' in dataPoint) {
-            standardData.timestamp = safeParseFloat(dataPoint.timestamp);
-            standardData.system.millis = safeParseFloat(dataPoint.timestamp);
-        } else if ('Tempo' in dataPoint) {
-            standardData.timestamp = safeParseFloat(dataPoint.Tempo) * 1000;
-            standardData.system.millis = safeParseFloat(dataPoint.Tempo) * 1000;
-        }
-
-        // Dati accelerometro
-        if ('accelX' in dataPoint) {
-            standardData.sensors.accel.x = safeParseFloat(dataPoint.accelX);
-            standardData.sensors.accel.y = safeParseFloat(dataPoint.accelY);
-            standardData.sensors.accel.z = safeParseFloat(dataPoint.accelZ);
-        } else if ('AccelX_telemetria' in dataPoint) {
-            standardData.sensors.accel.x = safeParseFloat(dataPoint.AccelX_telemetria);
-            standardData.sensors.accel.y = safeParseFloat(dataPoint.AccelY_telemetria);
-            standardData.sensors.accel.z = safeParseFloat(dataPoint.AccelZ_telemetria);
-        } else if ('accel' in dataPoint) {
-            standardData.sensors.accel.x = safeParseFloat(dataPoint.accel.x);
-            standardData.sensors.accel.y = safeParseFloat(dataPoint.accel.y);
-            standardData.sensors.accel.z = safeParseFloat(dataPoint.accel.z);
-        }
-
-        // Dati giroscopio
-        if ('gyroX' in dataPoint) {
-            standardData.sensors.gyro.x = safeParseFloat(dataPoint.gyroX);
-            standardData.sensors.gyro.y = safeParseFloat(dataPoint.gyroY);
-            standardData.sensors.gyro.z = safeParseFloat(dataPoint.gyroZ);
-        } else if ('GyroX_telemetria' in dataPoint) {
-            standardData.sensors.gyro.x = safeParseFloat(dataPoint.GyroX_telemetria);
-            standardData.sensors.gyro.y = safeParseFloat(dataPoint.GyroY_telemetria);
-            standardData.sensors.gyro.z = safeParseFloat(dataPoint.GyroZ_telemetria);
-        } else if ('gyro' in dataPoint) {
-            standardData.sensors.gyro.x = safeParseFloat(dataPoint.gyro.x);
-            standardData.sensors.gyro.y = safeParseFloat(dataPoint.gyro.y);
-            standardData.sensors.gyro.z = safeParseFloat(dataPoint.gyro.z);
-        }
-
-        // Altitudine
-        if ('altitude' in dataPoint) {
-            standardData.sensors.altitude = safeParseFloat(dataPoint.altitude);
-        } else if ('Altezza_telemetria' in dataPoint) {
-            standardData.sensors.altitude = safeParseFloat(dataPoint.Altezza_telemetria);
-        } else if ('sensors' in dataPoint && 'altitude' in dataPoint.sensors) {
-            standardData.sensors.altitude = safeParseFloat(dataPoint.sensors.altitude);
-        }
-
-        // Temperatura
-        if ('temperature' in dataPoint) {
-            standardData.sensors.temperature = safeParseFloat(dataPoint.temperature);
-        } else if ('sensors' in dataPoint && 'temperature' in dataPoint.sensors) {
-            standardData.sensors.temperature = safeParseFloat(dataPoint.sensors.temperature);
-        }
-
-        // Quaternioni - verifica che i valori siano numeri validi
-        if ('quatW' in dataPoint && 'quatX' in dataPoint && 'quatY' in dataPoint && 'quatZ' in dataPoint) {
-            const qW = safeParseFloat(dataPoint.quatW, null);
-            const qX = safeParseFloat(dataPoint.quatX, null);
-            const qY = safeParseFloat(dataPoint.quatY, null);
-            const qZ = safeParseFloat(dataPoint.quatZ, null);
-            
-            // Verifica che tutti i valori quaternione siano numeri validi
-            if (qW !== null && qX !== null && qY !== null && qZ !== null) {
-                standardData.quaternion = { qW, qX, qY, qZ };
-            }
-        } else if ('quat' in dataPoint) {
-            standardData.quaternion = dataPoint.quat;
-        } else if ('quaternion' in dataPoint) {
-            standardData.quaternion = dataPoint.quaternion;
-        }
-
-        // Stato del razzo
-        if ('state' in dataPoint) {
-            standardData.system.rocketState = dataPoint.state.toString();
-        } else if ('system' in dataPoint && 'rocketState' in dataPoint.system) {
-            standardData.system.rocketState = dataPoint.system.rocketState;
-        }
-
-        // Simulazione (se presente)
-        if ('Altezza_simulazione' in dataPoint) {
-            standardData.simulation.altitude = safeParseFloat(dataPoint.Altezza_simulazione);
-        }
-        if ('Velocita_totale_simulazione' in dataPoint) {
-            standardData.simulation.velocity = safeParseFloat(dataPoint.Velocita_totale_simulazione);
-        }
-
-        // Dati del sistema
-        if ('battery' in dataPoint) {
-            standardData.system.battery_voltage = safeParseFloat(dataPoint.battery);
-        } else if ('analogValue' in dataPoint) {
-            // Converti il valore analogico in tensione (approssimazione)
-            standardData.system.battery_voltage = safeParseFloat(dataPoint.analogValue) / 1023 * 5;
-        } else if ('system' in dataPoint && 'battery_voltage' in dataPoint.system) {
-            standardData.system.battery_voltage = safeParseFloat(dataPoint.system.battery_voltage);
-        }
-
-        // Se ci sono orientamento già calcolati, usali
-        if ('orientation' in dataPoint) {
-            standardData.orientation = {
-                x: safeParseFloat(dataPoint.orientation.x, 0),
-                y: safeParseFloat(dataPoint.orientation.y, 0),
-                z: safeParseFloat(dataPoint.orientation.z, 0)
-            };
-        }
-
-        return standardData;
+        return defaultValue;
     }
+    
+    // Creazione dell'oggetto standard con valori di default
+    const standardData = {
+        timestamp: Date.now(),
+        sensors: {
+            accel: { x: 0, y: 0, z: 0 },
+            gyro: { x: 0, y: 0, z: 0 },
+            altitude: 0,
+            temperature: 20
+        },
+        system: {
+            battery_voltage: 4.2,
+            rocketState: "Unknown",
+            millis: Date.now()
+        },
+        orientation: { x: 0, y: 0, z: 0 },
+        quaternion: null
+    };
+
+    // === GESTIONE TIMESTAMP ===
+    if ('timestamp' in dataPoint) {
+        standardData.timestamp = safeParseFloat(dataPoint.timestamp);
+        standardData.system.millis = standardData.timestamp;
+    } else if ('millis' in dataPoint) {
+        standardData.timestamp = safeParseFloat(dataPoint.millis);
+        standardData.system.millis = standardData.timestamp;
+    }
+
+    // === GESTIONE DATI ACCELEROMETRO ===
+    
+    // Formato WebSocket: accel è un oggetto con x, y, z
+    if (dataPoint.accel && typeof dataPoint.accel === 'object') {
+        standardData.sensors.accel.x = safeParseFloat(dataPoint.accel.x);
+        standardData.sensors.accel.y = safeParseFloat(dataPoint.accel.y);
+        standardData.sensors.accel.z = safeParseFloat(dataPoint.accel.z);
+    }
+    // Formato CSV: accelX, accelY, accelZ come campi separati
+    else if ('accelX' in dataPoint) {
+        standardData.sensors.accel.x = safeParseFloat(dataPoint.accelX);
+        standardData.sensors.accel.y = safeParseFloat(dataPoint.accelY);
+        standardData.sensors.accel.z = safeParseFloat(dataPoint.accelZ);
+    }
+
+    // === GESTIONE DATI GIROSCOPIO ===
+    
+    // Formato WebSocket: gyro è un oggetto con x, y, z
+    if (dataPoint.gyro && typeof dataPoint.gyro === 'object') {
+        standardData.sensors.gyro.x = safeParseFloat(dataPoint.gyro.x);
+        standardData.sensors.gyro.y = safeParseFloat(dataPoint.gyro.y);
+        standardData.sensors.gyro.z = safeParseFloat(dataPoint.gyro.z);
+    }
+    // Formato CSV: gyroX, gyroY, gyroZ come campi separati
+    else if ('gyroX' in dataPoint) {
+        standardData.sensors.gyro.x = safeParseFloat(dataPoint.gyroX);
+        standardData.sensors.gyro.y = safeParseFloat(dataPoint.gyroY);
+        standardData.sensors.gyro.z = safeParseFloat(dataPoint.gyroZ);
+    }
+
+    // === GESTIONE QUATERNIONI ===
+    
+    // Formato WebSocket: quat è un oggetto con qW, qX, qY, qZ
+    if (dataPoint.quat && typeof dataPoint.quat === 'object') {
+        standardData.quaternion = {
+            qW: safeParseFloat(dataPoint.quat.qW),
+            qX: safeParseFloat(dataPoint.quat.qX),
+            qY: safeParseFloat(dataPoint.quat.qY),
+            qZ: safeParseFloat(dataPoint.quat.qZ)
+        };
+    }
+    // Formato CSV: quatW, quatX, quatY, quatZ come campi separati
+    else if ('quatW' in dataPoint && dataPoint.quatW !== null && dataPoint.quatW !== '') {
+        standardData.quaternion = {
+            qW: safeParseFloat(dataPoint.quatW),
+            qX: safeParseFloat(dataPoint.quatX),
+            qY: safeParseFloat(dataPoint.quatY),
+            qZ: safeParseFloat(dataPoint.quatZ)
+        };
+    }
+
+    // === GESTIONE ALTRI DATI SENSORI ===
+    
+    // Altitudine
+    if ('altitude' in dataPoint) {
+        standardData.sensors.altitude = safeParseFloat(dataPoint.altitude);
+    }
+    
+    // Temperatura
+    if ('temperature' in dataPoint) {
+        standardData.sensors.temperature = safeParseFloat(dataPoint.temperature);
+    }
+    
+    // === GESTIONE STATO SISTEMA ===
+    
+    // Stato del razzo
+    if ('rocketState' in dataPoint) {
+        standardData.system.rocketState = dataPoint.rocketState.toString();
+    } else if ('state' in dataPoint) {
+        standardData.system.rocketState = dataPoint.state.toString();
+    }
+    
+    // Tensione batteria
+    if ('battery_voltage' in dataPoint) {
+        standardData.system.battery_voltage = safeParseFloat(dataPoint.battery_voltage);
+    } else if ('analogValue' in dataPoint) {
+        standardData.system.battery_voltage = safeParseFloat(dataPoint.analogValue) / 1023 * 5;
+    }
+
+    console.log('Dati convertiti in formato standard:', standardData);
+    return standardData;
+}
     
     /**
      * Ricalcola l'orientamento per l'intero dataset
@@ -594,22 +568,20 @@ class TelemetryDataset {
     }
     
     /**
-     * Esporta il dataset come file CSV
+     * Esporta il dataset come file CSV nel formato originale del razzo
      * @returns {string} - Contenuto CSV
      */
     exportToCsv() {
         if (this.data.length === 0) return "";
         
-        // Definisci le colonne da esportare
+        // Definisci le colonne da esportare (formato originale del razzo)
         const columns = [
-            'timestamp', 'deltaTime',
-            'accel.x', 'accel.y', 'accel.z',
-            'gyro.x', 'gyro.y', 'gyro.z',
-            'orientation.x', 'orientation.y', 'orientation.z',
-            'quaternion.qW', 'quaternion.qX', 'quaternion.qY', 'quaternion.qZ',
-            'calculatedQuaternion.qW', 'calculatedQuaternion.qX', 'calculatedQuaternion.qY', 'calculatedQuaternion.qZ',
+            'timestamp',
+            'accelX', 'accelY', 'accelZ',
+            'gyroX', 'gyroY', 'gyroZ',
+            'quatW', 'quatX', 'quatY', 'quatZ',
             'altitude', 'temperature',
-            'battery_voltage', 'rocketState'
+            'analogValue', 'state'
         ];
         
         // Crea intestazione
@@ -617,30 +589,24 @@ class TelemetryDataset {
         
         // Aggiungi dati
         for (const point of this.data) {
-            const row = [
-                point.timestamp,
-                point.deltaTime,
-                point.sensors.accel.x,
-                point.sensors.accel.y,
-                point.sensors.accel.z,
-                point.sensors.gyro.x,
-                point.sensors.gyro.y,
-                point.sensors.gyro.z,
-                point.orientation.x,
-                point.orientation.y,
-                point.orientation.z,
-                point.quaternion ? point.quaternion.qW : '',
-                point.quaternion ? point.quaternion.qX : '',
-                point.quaternion ? point.quaternion.qY : '',
-                point.quaternion ? point.quaternion.qZ : '',
-                point.calculatedQuaternion ? point.calculatedQuaternion.qW : '',
-                point.calculatedQuaternion ? point.calculatedQuaternion.qX : '',
-                point.calculatedQuaternion ? point.calculatedQuaternion.qY : '',
-                point.calculatedQuaternion ? point.calculatedQuaternion.qZ : '',
-                point.sensors.altitude,
-                point.sensors.temperature,
-                point.system.battery_voltage,
-                point.system.rocketState
+            // Estrai i valori dai dati standardizzati al formato originale del razzo
+            let row = [
+                point.timestamp,                              // timestamp
+                point.sensors.accel.x,                        // accelX
+                point.sensors.accel.y,                        // accelY
+                point.sensors.accel.z,                        // accelZ
+                point.sensors.gyro.x,                         // gyroX
+                point.sensors.gyro.y,                         // gyroY
+                point.sensors.gyro.z,                         // gyroZ
+                // Includi quaternioni SOLO se provengono dal razzo (non quelli calcolati)
+                point.quaternion ? point.quaternion.qW : '',  // quatW
+                point.quaternion ? point.quaternion.qX : '',  // quatX
+                point.quaternion ? point.quaternion.qY : '',  // quatY
+                point.quaternion ? point.quaternion.qZ : '',  // quatZ
+                point.sensors.altitude,                       // altitude
+                point.sensors.temperature,                    // temperature
+                point.system.battery_voltage,                 // analogValue (batteria)
+                point.system.rocketState                      // state
             ];
             
             csv += row.join(',') + '\n';
@@ -656,6 +622,8 @@ class TelemetryDataset {
      */
     loadFromCsv(csvContent) {
         try {
+            console.log("Inizio caricamento CSV");
+            
             // Utilizza PapaParse per analizzare il CSV
             const parseResult = Papa.parse(csvContent, {
                 header: true,
@@ -664,76 +632,54 @@ class TelemetryDataset {
             });
             
             if (!parseResult.data || parseResult.data.length === 0) {
+                console.error("Nessun dato trovato nel CSV");
                 return false;
             }
+            
+            console.log("CSV analizzato, prima riga:", parseResult.data[0]);
+            console.log("Colonne trovate:", parseResult.meta.fields);
             
             // Resetta il dataset corrente
             this.reset();
             
-            // Mappa i dati CSV al formato standard
+            // Per ogni riga del CSV, crea un oggetto dati raw nel formato del razzo
             for (const row of parseResult.data) {
-                const standardData = {
-                    timestamp: parseFloat(row.timestamp) || 0,
-                    deltaTime: parseFloat(row.deltaTime) || 0,
-                    sensors: {
-                        accel: {
-                            x: parseFloat(row['accel.x']) || 0,
-                            y: parseFloat(row['accel.y']) || 0,
-                            z: parseFloat(row['accel.z']) || 0
-                        },
-                        gyro: {
-                            x: parseFloat(row['gyro.x']) || 0,
-                            y: parseFloat(row['gyro.y']) || 0,
-                            z: parseFloat(row['gyro.z']) || 0
-                        },
-                        altitude: parseFloat(row.altitude) || 0,
-                        temperature: parseFloat(row.temperature) || 20
+                // Crea un oggetto dati grezzo che segue il formato del razzo
+                const rawData = {
+                    timestamp: row.timestamp,
+                    accel: {
+                        x: row.accelX || 0,
+                        y: row.accelY || 0,
+                        z: row.accelZ || 0
                     },
-                    orientation: {
-                        x: parseFloat(row['orientation.x']) || 0,
-                        y: parseFloat(row['orientation.y']) || 0,
-                        z: parseFloat(row['orientation.z']) || 0
+                    gyro: {
+                        x: row.gyroX || 0,
+                        y: row.gyroY || 0,
+                        z: row.gyroZ || 0
                     },
-                    system: {
-                        battery_voltage: parseFloat(row.battery_voltage) || 4.2,
-                        rocketState: row.rocketState || "Unknown",
-                        millis: parseFloat(row.timestamp) || 0
-                    }
+                    altitude: row.altitude,
+                    temperature: row.temperature,
+                    rocketState: row.state || row.rocketState || "Unknown",
+                    battery_voltage: row.analogValue || row.battery_voltage || 4.2
                 };
                 
-                // Aggiungi quaternioni solo se presenti
-                if (row['quaternion.qW'] !== undefined) {
-                    standardData.quaternion = {
-                        qW: parseFloat(row['quaternion.qW']) || 0,
-                        qX: parseFloat(row['quaternion.qX']) || 0,
-                        qY: parseFloat(row['quaternion.qY']) || 0,
-                        qZ: parseFloat(row['quaternion.qZ']) || 0
+                // Aggiungi quaternioni se presenti
+                if (row.quatW !== undefined && row.quatW !== null && row.quatW !== '') {
+                    rawData.quat = {
+                        qW: row.quatW,
+                        qX: row.quatX,
+                        qY: row.quatY,
+                        qZ: row.quatZ
                     };
                 }
                 
-                if (row['calculatedQuaternion.qW'] !== undefined) {
-                    standardData.calculatedQuaternion = {
-                        qW: parseFloat(row['calculatedQuaternion.qW']) || 0,
-                        qX: parseFloat(row['calculatedQuaternion.qX']) || 0,
-                        qY: parseFloat(row['calculatedQuaternion.qY']) || 0,
-                        qZ: parseFloat(row['calculatedQuaternion.qZ']) || 0
-                    };
-                }
+                console.log("Dati grezzi creati da riga CSV:", rawData);
                 
-                // Aggiungi il punto dati senza fare la conversione standard
-                this.data.push(standardData);
+                // Aggiungi il punto dati
+                this.addDataPoint(rawData);
             }
             
-            // Aggiorna i metadati
-            if (this.data.length > 0) {
-                this.metadata.startTime = this.data[0].timestamp;
-                this.metadata.endTime = this.data[this.data.length - 1].timestamp;
-                this.metadata.totalPoints = this.data.length;
-                this._updateSamplingRates();
-                
-                // Verifica la presenza di quaternioni
-                this.metadata.hasQuaternions = this.data.some(d => d.quaternion !== null);
-            }
+            console.log(`Caricamento CSV completato con ${this.data.length} punti dati`);
             
             return true;
         } catch (error) {
@@ -741,7 +687,7 @@ class TelemetryDataset {
             return false;
         }
     }
-    
+
     /**
      * Carica dati grezzi da qualsiasi fonte
      * @param {Array} rawData - Array di dati grezzi
@@ -902,4 +848,69 @@ class TelemetryDataset {
         
         return stats;
     }
+
+    /**
+     * Verifica e stampa statistiche sui dati del dataset
+     * @returns {Object} - Statistiche dei dati
+     */
+    debugDataset() {
+        if (this.data.length === 0) {
+            console.log("Dataset vuoto");
+            return { empty: true };
+        }
+        
+        // Statistiche
+        const stats = {
+            totalPoints: this.data.length,
+            firstPoint: this.data[0],
+            lastPoint: this.data[this.data.length - 1],
+            accelStats: {
+                zeros: 0,
+                nonZeros: 0
+            },
+            gyroStats: {
+                zeros: 0,
+                nonZeros: 0
+            },
+            hasQuaternions: 0,
+            missingQuaternions: 0
+        };
+        
+        // Analizza tutti i punti
+        for (const point of this.data) {
+            // Controlla accelerometro
+            const accel = point.sensors.accel;
+            if (accel.x === 0 && accel.y === 0 && accel.z === 0) {
+                stats.accelStats.zeros++;
+            } else {
+                stats.accelStats.nonZeros++;
+            }
+            
+            // Controlla giroscopio
+            const gyro = point.sensors.gyro;
+            if (gyro.x === 0 && gyro.y === 0 && gyro.z === 0) {
+                stats.gyroStats.zeros++;
+            } else {
+                stats.gyroStats.nonZeros++;
+            }
+            
+            // Controlla quaternioni
+            if (point.quaternion) {
+                stats.hasQuaternions++;
+            } else {
+                stats.missingQuaternions++;
+            }
+        }
+        
+        console.log("Statistiche Dataset:", stats);
+        
+        // Dettagli primo punto
+        console.log("Primo punto:", this.data[0]);
+        
+        // Dettagli ultimo punto
+        console.log("Ultimo punto:", this.data[this.data.length - 1]);
+        
+        return stats;
+    }
 }
+

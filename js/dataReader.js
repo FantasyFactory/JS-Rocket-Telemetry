@@ -89,7 +89,9 @@ const DataReader = (function() {
         return this;
     }
     
-    // Connette al WebSocket per i dati in tempo reale
+    /**
+     * Connette al WebSocket per i dati in tempo reale
+     */
     function connectWebSocket() {
         // Determina l'URL del WebSocket
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -97,6 +99,7 @@ const DataReader = (function() {
         const wsUrl = `${wsProtocol}//${wsHost}/ws`;
         
         try {
+            console.log('Tentativo di connessione WebSocket a:', wsUrl);
             wsConnection = new WebSocket(wsUrl);
             
             wsConnection.onopen = function() {
@@ -117,10 +120,13 @@ const DataReader = (function() {
             
             wsConnection.onmessage = function(event) {
                 try {
+                    console.log('Messaggio WebSocket ricevuto:', event.data);
                     const data = JSON.parse(event.data);
+                    
+                    // Processa i dati ricevuti
                     processRealtimeData(data);
                 } catch (error) {
-                    console.error('Errore nel parsing dei dati WebSocket:', error);
+                    console.error('Errore nel parsing dei dati WebSocket:', error, event.data);
                 }
             };
         } catch (error) {
@@ -129,19 +135,40 @@ const DataReader = (function() {
         }
     }
     
-    // Processa i dati in tempo reale
+    /**
+     * Processa i dati in tempo reale ricevuti dal WebSocket
+     * @param {Object} data - Dati ricevuti dal WebSocket
+     */
     function processRealtimeData(data) {
-        // Aggiungi il nuovo punto dati al dataset
-        const processedData = telemetryDataset.addDataPoint(data);
+        console.log('Dati ricevuti dal WebSocket:', data);
         
-        // Imposta l'indice corrente all'ultimo punto
-        telemetryDataset.currentIndex = telemetryDataset.data.length - 1;
-        
-        // Notifica i dati a tutti i listener
-        notifyListeners(processedData);
-        
-        // Notifica statistiche aggiornate
-        notifyEvent('stats', telemetryDataset.getStatistics());
+        try {
+            // Verifica che i dati abbiano almeno un timestamp
+            if (!data.timestamp && !data.millis) {
+                console.warn('Dati ricevuti senza timestamp, aggiungo timestamp corrente');
+                data.timestamp = Date.now();
+            }
+            
+            // Se c'è solo millis ma non timestamp, usa millis come timestamp
+            if (!data.timestamp && data.millis) {
+                data.timestamp = data.millis;
+            }
+            
+            // Aggiungi il nuovo punto dati al dataset
+            const processedData = telemetryDataset.addDataPoint(data);
+            
+            // Imposta l'indice corrente all'ultimo punto
+            telemetryDataset.currentIndex = telemetryDataset.data.length - 1;
+            
+            // Notifica i dati a tutti i listener
+            console.log('Notifica ai listener con i dati processati:', processedData);
+            notifyListeners(processedData);
+            
+            // Notifica statistiche aggiornate
+            notifyEvent('stats', telemetryDataset.getStatistics());
+        } catch (error) {
+            console.error('Errore nel processare i dati in tempo reale:', error);
+        }
     }
     
     // Carica dati da file CSV o TXT
