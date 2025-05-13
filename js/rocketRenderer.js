@@ -280,11 +280,23 @@ const RocketRenderer = (function() {
     function update(orientation, acceleration, gyro) {
         if (!rocketModel || !indicatorsGroup) return;
         
-        // Applica le rotazioni al modello del razzo
-        rocketModel.rotation.order = 'YXZ'; // Ordine di rotazione
-        rocketModel.rotation.y = THREE.MathUtils.degToRad(-orientation.z); // Yaw
-        rocketModel.rotation.x = THREE.MathUtils.degToRad(orientation.x);  // Roll
-        rocketModel.rotation.z = THREE.MathUtils.degToRad(orientation.y);  // Pitch
+        // Usa direttamente il quaternione se disponibile
+        if (orientation.quaternion) {
+            const q = orientation.quaternion;
+            //rocketModel.quaternion.set(q.qX, q.qY, q.qZ, q.qW);
+            rocketModel.quaternion.set(q.qX, q.qZ, q.qY, q.qW);
+        } else {
+            // Fallback agli angoli di Eulero con ordine corretto
+            //rocketModel.rotation.order = 'YXZ'; // Ordine di rotazione
+            rocketModel.rotation.order = 'ZYX'; // Prova questo ordine
+            rocketModel.rotation.y = THREE.MathUtils.degToRad(-orientation.z); // Yaw
+            rocketModel.rotation.x = THREE.MathUtils.degToRad(orientation.x);  // Roll
+            rocketModel.rotation.z = THREE.MathUtils.degToRad(orientation.y);  // Pitch
+
+            //rocketModel.rotation.z = THREE.MathUtils.degToRad(orientation.x); // Roll (attorno all'asse longitudinale)
+            //rocketModel.rotation.y = THREE.MathUtils.degToRad(orientation.y); // Pitch
+            //rocketModel.rotation.x = THREE.MathUtils.degToRad(orientation.z); // Yaw
+        }
         
         // Resetta la rotazione del gruppo indicatori
         indicatorsGroup.rotation.set(0, 0, 0);
